@@ -7,6 +7,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.checkerframework.checker.units.qual.C;
 
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -19,8 +20,6 @@ public class GreetingClient {
                 .usePlaintext()
                 .build();
 
-
-
         //Unary
         //unaryCall(channel);
 
@@ -28,10 +27,55 @@ public class GreetingClient {
         //serverStreamingCall(channel);
 
         //Client Stream
-        clientStreamingCall(channel);
+        //clientStreamingCall(channel);
+
+        //Bi Directional Stream
+        biDirectionalStreamingCall(channel);
 
         System.out.println("Shutting down channel");
         channel.shutdown();
+    }
+
+    private static void biDirectionalStreamingCall(ManagedChannel channel) throws InterruptedException {
+        //create an async client
+        GreetServiceGrpc.GreetServiceStub asyncClient = GreetServiceGrpc.newStub(channel);
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        StreamObserver<GreetEveryoneRequest> requestObserver = asyncClient.greetEveryone(new StreamObserver<GreetEveryoneResponse>() {
+            @Override
+            public void onNext(GreetEveryoneResponse value) {
+                //response from server
+                System.out.println("Received a response");
+                System.out.println(value.getResult());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                //server responds with error
+                latch.countDown();
+            }
+
+            @Override
+            public void onCompleted() {
+                //server is done sending data;
+                System.out.println("Server completed sending us data");
+                latch.countDown();
+            }
+        });
+
+        Arrays.asList("Prashant", "Godhwani", "Jai Shree Ram")
+            .forEach(name -> requestObserver.onNext(GreetEveryoneRequest.newBuilder()
+                .setGreeting(Greeting.newBuilder()
+                        .setFirstName(name)
+                        .build())
+                .build()));
+
+        //telling server that client is done sending data
+        requestObserver.onCompleted();
+
+        //wait till latch is 0 - which will be when server calls onComplete
+        latch.await(3L, TimeUnit.SECONDS);
     }
 
     private static void clientStreamingCall(ManagedChannel channel) throws InterruptedException {
@@ -61,23 +105,12 @@ public class GreetingClient {
             }
         });
 
-        requestObserver.onNext(LongGreetRequest.newBuilder()
-                .setGreeting(Greeting.newBuilder()
-                        .setFirstName("Prashant")
-                        .build())
-                .build());
-
-        requestObserver.onNext(LongGreetRequest.newBuilder()
-                .setGreeting(Greeting.newBuilder()
-                        .setFirstName("Godhwani")
-                        .build())
-                .build());
-
-        requestObserver.onNext(LongGreetRequest.newBuilder()
-                .setGreeting(Greeting.newBuilder()
-                        .setFirstName("Jai Shree Ram")
-                        .build())
-                .build());
+        Arrays.asList("Prashant", "Godhwani", "Jai Shree Ram")
+            .forEach(name -> requestObserver.onNext(LongGreetRequest.newBuilder()
+            .setGreeting(Greeting.newBuilder()
+                    .setFirstName(name)
+                    .build())
+            .build()));
 
         //telling server that client is done sending data
         requestObserver.onCompleted();

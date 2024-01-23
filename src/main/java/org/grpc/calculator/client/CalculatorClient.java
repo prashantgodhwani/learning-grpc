@@ -7,6 +7,7 @@ import io.grpc.stub.StreamObserver;
 import org.checkerframework.checker.units.qual.C;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -20,23 +21,40 @@ public class CalculatorClient {
                 .usePlaintext()
                 .build();
 
+        //unaryCall(channel);
+
+        //serverStreamingCall(channel);
+
+        //clientStreamingCall(channel);
+
+        biDirectionalStreamingCall(channel);
+
+        channel.shutdown();
+    }
+
+    private static void unaryCall(ManagedChannel channel) {
         CalculatorServiceGrpc.CalculatorServiceBlockingStub syncCalculatorClient = CalculatorServiceGrpc.newBlockingStub(channel);
 
-//        SumRequest sumRequest = SumRequest.newBuilder()
-//                .setFirst(5)
-//                .setSecond(10)
-//                .build();
-//
-//        SumResponse response = syncCalculatorClient.sum(sumRequest);
-//        System.out.println(response);
+        SumRequest sumRequest = SumRequest.newBuilder()
+        .setFirst(5)
+        .setSecond(10)
+        .build();
 
-//        PrimeNumberDecompositionRequest primeNumberDecompositionRequest = PrimeNumberDecompositionRequest.newBuilder()
-//                .setNum(18)
-//                .build();
-//
-//        syncCalculatorClient.decomposeNumber(primeNumberDecompositionRequest)
-//                .forEachRemaining(primeNumberDecompositionResponse -> System.out.println(primeNumberDecompositionResponse.getPrimeFactor()));
+        SumResponse response = syncCalculatorClient.sum(sumRequest);
+        System.out.println(response);
+    }
 
+    private static void serverStreamingCall(ManagedChannel channel){
+        CalculatorServiceGrpc.CalculatorServiceBlockingStub syncCalculatorClient = CalculatorServiceGrpc.newBlockingStub(channel);
+
+        PrimeNumberDecompositionRequest primeNumberDecompositionRequest = PrimeNumberDecompositionRequest.newBuilder()
+        .setNum(18)
+        .build();
+
+        syncCalculatorClient.decomposeNumber(primeNumberDecompositionRequest)
+                .forEachRemaining(primeNumberDecompositionResponse -> System.out.println(primeNumberDecompositionResponse.getPrimeFactor()));
+    }
+    private static void clientStreamingCall(ManagedChannel channel) throws InterruptedException {
         CalculatorServiceGrpc.CalculatorServiceStub asyncCalculatorClient = CalculatorServiceGrpc.newStub(channel);
         CountDownLatch latch = new CountDownLatch(1);
         StreamObserver<ComputeAverageRequest> computeAverageRequestStreamObserver = asyncCalculatorClient.computeAverage(new StreamObserver<ComputeAverageResponse>() {
@@ -64,7 +82,36 @@ public class CalculatorClient {
         computeAverageRequestStreamObserver.onCompleted();
 
         latch.await(3L, TimeUnit.SECONDS);
+    }
 
-        channel.shutdown();
+    private static void biDirectionalStreamingCall(ManagedChannel channel) throws InterruptedException {
+        CalculatorServiceGrpc.CalculatorServiceStub asyncCalculatorClient = CalculatorServiceGrpc.newStub(channel);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        StreamObserver<FindMaximumRequest> computeAverageRequestStreamObserver =
+                asyncCalculatorClient.findMaximum(new StreamObserver<FindMaximumResponse>() {
+                    @Override
+                    public void onNext(FindMaximumResponse value) {
+                        System.out.println("Max Now = " + value.getMax());
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        countDownLatch.countDown();
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("Server completed sending us data");
+                        countDownLatch.countDown();
+                    }
+                });
+
+        Arrays.asList(10, 8, 100, 158).forEach(number ->
+                computeAverageRequestStreamObserver.onNext(FindMaximumRequest.newBuilder()
+                        .setNum(number).build()));
+
+        computeAverageRequestStreamObserver.onCompleted();
+
+        countDownLatch.await(3L, TimeUnit.SECONDS);
     }
 }
