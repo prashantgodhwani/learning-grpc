@@ -2,10 +2,10 @@ package org.grpc.greeting.client;
 
 import com.proto.dummy.DummyServiceGrpc;
 import com.proto.greet.*;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.checkerframework.checker.units.qual.C;
+import org.checkerframework.checker.units.qual.Time;
 
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
@@ -30,10 +30,32 @@ public class GreetingClient {
         //clientStreamingCall(channel);
 
         //Bi Directional Stream
-        biDirectionalStreamingCall(channel);
+        //biDirectionalStreamingCall(channel);
+
+        //Unary with Deadline
+        unaryWithDeadline(channel);
 
         System.out.println("Shutting down channel");
         channel.shutdown();
+    }
+
+    private static void unaryWithDeadline(ManagedChannel channel) {
+        GreetServiceGrpc.GreetServiceBlockingStub blockingClient = GreetServiceGrpc.newBlockingStub(channel);
+
+        try {
+            System.out.println("Client has deadline of 1000ms");
+            GreetWithDeadlineResponse response = blockingClient.withDeadline(Deadline.after(700, TimeUnit.MILLISECONDS))
+                    .greetWithDeadline(GreetWithDeadlineRequest.newBuilder()
+                            .setGreeting(Greeting.newBuilder()
+                                    .setFirstName("Prashant")
+                                    .build())
+                            .build());
+            System.out.println(response.getResult());
+        }catch (StatusRuntimeException e){
+            if(e.getStatus() == Status.DEADLINE_EXCEEDED){
+                System.out.println("Deadline exceeded. Client doesn't want the response");
+            }
+        }
     }
 
     private static void biDirectionalStreamingCall(ManagedChannel channel) throws InterruptedException {

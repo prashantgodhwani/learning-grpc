@@ -3,6 +3,7 @@ package org.grpc.calculator.client;
 import com.proto.calculator.*;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.checkerframework.checker.units.qual.C;
 
@@ -27,9 +28,22 @@ public class CalculatorClient {
 
         //clientStreamingCall(channel);
 
-        biDirectionalStreamingCall(channel);
+        //biDirectionalStreamingCall(channel);
+
+        squareRootErrorHandlingCall(channel);
 
         channel.shutdown();
+    }
+
+    private static void squareRootErrorHandlingCall(ManagedChannel channel) {
+        CalculatorServiceGrpc.CalculatorServiceBlockingStub syncCalculatorClient = CalculatorServiceGrpc.newBlockingStub(channel);
+
+        try{
+            syncCalculatorClient.squareRoot(SquareRootRequest.newBuilder().setNum(-1).build());
+        }catch (StatusRuntimeException exception){
+            System.out.println(exception.getStatus() + " : " + exception.getMessage());
+            exception.printStackTrace();
+        }
     }
 
     private static void unaryCall(ManagedChannel channel) {

@@ -1,6 +1,7 @@
 package org.grpc.greeting.server;
 
 import com.proto.greet.*;
+import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 
 public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
@@ -101,5 +102,34 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
                responseObserver.onCompleted();
            }
        };
+    }
+
+    @Override
+    public void greetWithDeadline(GreetWithDeadlineRequest request, StreamObserver<GreetWithDeadlineResponse> responseObserver) {
+
+        try{
+            Context context = Context.current();
+
+            //simulate a long-running Process
+            for(int i = 0; i < 3; i++){
+                System.out.println("Server computing something.");
+                Thread.sleep(1000);
+
+                //if context shows client deadline passed, return without further compute
+                if(context.isCancelled()){
+                    System.out.println("Client request cancelled. Stopping further computation");
+                    return;
+                }
+            }
+
+            responseObserver.onNext(GreetWithDeadlineResponse.newBuilder()
+                    .setResult("Hola, " + request.getGreeting())
+                    .build());
+
+            responseObserver.onCompleted();
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

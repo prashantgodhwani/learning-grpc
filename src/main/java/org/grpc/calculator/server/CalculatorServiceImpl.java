@@ -1,6 +1,7 @@
 package org.grpc.calculator.server;
 
 import com.proto.calculator.*;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServiceImplBase {
@@ -50,6 +51,7 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
             @Override
             public void onError(Throwable t) {
                 //do nothing
+                responseObserver.onCompleted();
             }
 
             @Override
@@ -79,6 +81,7 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
             @Override
             public void onError(Throwable t) {
                 //no nothing
+                responseObserver.onCompleted();
             }
 
             @Override
@@ -86,5 +89,22 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
                 responseObserver.onCompleted();
             }
         };
+    }
+
+    @Override
+    public void squareRoot(SquareRootRequest request, StreamObserver<SquareRootResponse> responseObserver) {
+        int number = request.getNum();
+
+        if(number >= 0){
+            responseObserver.onNext(SquareRootResponse.newBuilder()
+                    .setSquareRoot((int) Math.sqrt(number))
+                    .build());
+            responseObserver.onCompleted();
+        }else{
+            responseObserver.onError(Status.INVALID_ARGUMENT
+                    .withDescription("Number is negative")
+                    .augmentDescription("number : " + number)
+                    .asRuntimeException());
+        }
     }
 }
